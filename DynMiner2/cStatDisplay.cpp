@@ -44,7 +44,7 @@ void cStatDisplay::displayStats(cSubmitter *submitter, string mode) {
 
 	while (true)
 	{
-        std::this_thread::sleep_for(std::chrono::seconds(5));
+        std::this_thread::sleep_for(std::chrono::seconds(1));
 
         uint64_t nonce = nonce_count;
 
@@ -87,7 +87,9 @@ void cStatDisplay::displayStats(cSubmitter *submitter, string mode) {
         SET_COLOR(LIGHTGREEN);
         printf("S: %4lu", share_count.load(std::memory_order_relaxed));
         SET_COLOR(GREEN);
-        printf("/%-4d", accepted_share_count.load(std::memory_order_relaxed));
+        SET_COLOR(LIGHTGRAY);
+        printf(" | ");
+        printf("A: %-4d", accepted_share_count.load(std::memory_order_relaxed));
         SET_COLOR(LIGHTGRAY);
         printf(" | ");
         SET_COLOR(RED);
@@ -95,28 +97,8 @@ void cStatDisplay::displayStats(cSubmitter *submitter, string mode) {
         SET_COLOR(LIGHTGRAY);
         printf(" | ");
         SET_COLOR(LIGHTGREEN);
-        printf(" D:%-4d", latest_diff.load(std::memory_order_relaxed));
-        SET_COLOR(LIGHTGRAY);
-        printf(" | ");
-        SET_COLOR(LIGHTGREEN);
-        printf("N:%-12lu", nonce);
-        SET_COLOR(LIGHTGRAY);
-        printf(" | ");
-        SET_COLOR(LIGHTGREEN);
-        printf(" HQ:%-4d", submitter->hashList.size());
-
-        if (mode == "solo") {
-            SET_COLOR(LIGHTGRAY);
-            printf(" | ");
-            printf("Height: %-9d", blockHeight);
-            SET_COLOR(LIGHTGRAY);
-            printf(" | ");
-        }
-
-        SET_COLOR(LIGHTMAGENTA);
-        printf("DynMiner %s\n", MINER_VERSION);
-        SET_COLOR(LIGHTGRAY);
-
+        printf("N:%-12lu\n", nonce);
+        SET_COLOR(YELLOW);
 
 	}
 

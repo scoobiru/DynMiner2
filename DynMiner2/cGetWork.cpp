@@ -41,6 +41,8 @@ void cGetWork::getWork(string mode, int stratumSocket, cStatDisplay* statDisplay
 		startSoloGetWork(statDisplay);
 }
 
+int blk;
+int dff;
 void cGetWork::startSoloGetWork( cStatDisplay* statDisplay) {
 
 	json jResult;
@@ -52,40 +54,39 @@ void cGetWork::startSoloGetWork( cStatDisplay* statDisplay) {
     transactionString = NULL;
 
 	while (true) {
+
 		jResult = execRPC("{ \"id\": 0, \"method\" : \"gethashfunction\", \"params\" : [] }");
         strProgram = jResult["result"][0]["program"];
         int start_time = jResult["result"][0]["start_time"];
-        printf("got program %d\n", start_time);
         programStartTime = start_time;
-
-
-        auto nonceNow = std::chrono::high_resolution_clock::now();
-        auto tick = nonceNow.time_since_epoch();
-        uint64_t lTick = tick.count();
-        uint32_t extra_nonce = lTick % 0xFFFFFFFF;
-
+        
 		jResult = execRPC("{ \"id\": 0, \"method\" : \"getblocktemplate\", \"params\" : [{ \"rules\": [\"segwit\"] }] }");
-        setJobDetailsSolo(jResult, extra_nonce);
+        setJobDetailsSolo(jResult);
         statDisplay->blockHeight = jResult["result"]["height"];
-
+        blk = jResult["result"]["height"];
         reqNewBlockFlag = false;
         bool newBlock = false;
         time_t start, now;
         time(&start);
         time(&now);
-        while ((!newBlock) && (!reqNewBlockFlag) && (now - start < 3)) {
+        while ((!newBlock) && (!reqNewBlockFlag) && (now - start < 45)) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
             jResult = execRPC("{ \"id\": 0, \"method\" : \"getblocktemplate\", \"params\" : [{ \"rules\": [\"segwit\"] }] }");
             if (jResult["result"]["height"] != chainHeight) {
                 newBlock = true;
+                printf("Block Change %d Diff (%d)\n", blk+1, dff);
                 //printf("Requesting new block");
             }
             time(&now);
         }
+
+
 	}
+
 }
 
-
+string njb;
+int dif;
 void cGetWork::startStratumGetWork(int stratumSocket, cStatDisplay* statDisplay) {
     std::vector<char> buffer;
 
@@ -107,10 +108,14 @@ void cGetWork::startStratumGetWork(int stratumSocket, cStatDisplay* statDisplay)
 					const std::string& method = msg["method"];
 					if (method == "mining.notify") {
 						setJobDetailsStratum(msg);
+                        const std::vector<json>& params = msg["params"];
+                        njb = params[0];
+                        printf("New Job %s Diff (%d)\n", njb, dif);
 					}
 					else if (method == "mining.set_difficulty") {
 						const std::vector<uint32_t>& params = msg["params"];
 						difficultyTarget = params[0];
+                        dif = params[0];
                         //if (difficultyTarget < 20)
                         //    difficultyTarget = 20;
 						statDisplay->latest_diff.store(difficultyTarget);
@@ -133,7 +138,7 @@ void cGetWork::startStratumGetWork(int stratumSocket, cStatDisplay* statDisplay)
 							const std::vector<json>& error = msg["error"];
 							const int code = error[0];
 							const std::string& message = error[1];
-                            printf("%s\n", message.c_str());
+                            //printf("%s\n", message.c_str());
 							statDisplay->rejected_share_count++;
 							///////printf("Error (%s): %s (code: %d)\n", resp.c_str(), message.c_str(), code);
 							////////////miner.shares.stats.rejected_share_count++;
@@ -326,7 +331,7 @@ static unsigned int countLeadingZeros(unsigned char* hash) {
 
 
 
-void cGetWork::setJobDetailsSolo(json result, uint32_t extranonce) {
+void cGetWork::setJobDetailsSolo(json result) {
 
 
     lockJob.lock();
@@ -594,9 +599,11 @@ void cGetWork::setJobDetailsSolo(json result, uint32_t extranonce) {
     programVM->byteCode.clear();
     programVM->generateBytecode(program, merkleRoot, prevBlockHashBin);
 
-    if (stats != NULL)
+    if (stats != NULL) {
         stats->latest_diff = countLeadingZeros((unsigned char*)iNativeTarget);
-
+        dff = countLeadingZeros((unsigned char*)iNativeTarget);
+    }
+    
     workID++;
 
     lockJob.unlock();

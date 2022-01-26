@@ -87,7 +87,6 @@ void cMiner::startGPUMiner(const size_t computeUnits, int platformID, int device
         getWork->lockJob.lock();
         workReady = (getWork->workID != 0);
         getWork->lockJob.unlock();
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
     cl_int returnVal; 
@@ -125,7 +124,7 @@ void cMiner::startGPUMiner(const size_t computeUnits, int platformID, int device
     kernel = clCreateKernel(program, "dyn_hash", &returnVal);
     commandQueue = clCreateCommandQueueWithProperties(context, open_cl_devices[deviceID], NULL, &returnVal);
 
-    size_t programBufferSize = 8192;  //getWork->programVM->byteCode.size() * 4
+    size_t programBufferSize = 16384;  //getWork->programVM->byteCode.size() * 4
     clGPUProgramBuffer = clCreateBuffer(context, CL_MEM_READ_WRITE, programBufferSize, NULL, &returnVal);
     checkReturn("clSetKernelArg - program", clSetKernelArg(kernel, 0, sizeof(cl_mem), (void*)&clGPUProgramBuffer));
 
@@ -157,6 +156,9 @@ void cMiner::startGPUMiner(const size_t computeUnits, int platformID, int device
         unsigned int nonce;
         int workID;
 
+        time_t now;
+        time(&now);
+        srand(now);
 
         getWork->lockJob.lock();
 

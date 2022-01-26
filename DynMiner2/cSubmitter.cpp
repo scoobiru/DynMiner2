@@ -51,6 +51,7 @@ void cSubmitter::submitEvalThread(cGetWork *getWork, cStatDisplay *iStatDisplay,
                 for (uint32_t k = 0; k < hashResult->hashCount; k++) {
                     unsigned int numZeros = countLeadingZeros(ptr);
                     if (numZeros > target) {
+                        //printf("Hit (%d) Target (%d)\n", numZeros, target);
                         nonceListLock.lock();
                         uint32_t nonce = hashResult->nonceIndex[k];
                         cNonceEntry* entry = new cNonceEntry();
@@ -58,6 +59,12 @@ void cSubmitter::submitEvalThread(cGetWork *getWork, cStatDisplay *iStatDisplay,
                         entry->jobID = hashResult->jobID;
                         nonceList.push_back(entry);
                         nonceListLock.unlock();
+                    }
+                    else {
+                        int dks = target - numZeros;
+                        if (dks <= 3) {
+                            //printf("Hit (%d) Target (%d)\n", numZeros, target);
+                        }
                     }
                     ptr += 32;
                 }
@@ -71,7 +78,7 @@ void cSubmitter::submitEvalThread(cGetWork *getWork, cStatDisplay *iStatDisplay,
 		}
         else {
             hashListLock.unlock();
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
         }
 		
@@ -173,15 +180,15 @@ void cSubmitter::submitNonce(unsigned int nonce, cGetWork *getWork) {
     if (minerMode == "stratum") {
         char buf[4096];
         unsigned int* pNonce = &nonce;
+        string nnc = makeHex((unsigned char*)pNonce, 4).c_str();
         sprintf(buf, "{\"params\": [\"%s\", \"%s\", \"\", \"%s\", \"%s\"], \"id\": \"%d\", \"method\": \"mining.submit\"}",
-            rpcUser.c_str(), getWork->jobID.c_str(), getWork->timeHex.c_str(), makeHex((unsigned char*)pNonce, 4).c_str(), rpcSequence);
+            rpcUser.c_str(), getWork->jobID.c_str(), getWork->timeHex.c_str(), nnc, rpcSequence);
 
         //printf("%s\n", buf);
 
         int numSent = send(stratumSocket, buf, strlen(buf), 0);
-        if (numSent < 0)
-            printf("Socket error on submit block\n");
-
+        //printf("Submit Nonce %s\n", nnc);
+        
         rpcSequence++;
 
         statDisplay->share_count++;
@@ -214,14 +221,18 @@ void cSubmitter::submitNonce(unsigned int nonce, cGetWork *getWork) {
 
         json jResult = execRPC("{ \"id\": 0, \"method\" : \"submitblock\", \"params\" : [\"" + strBlock + "\"] }");
 
-        printf("submit result: %s\n", jResult.dump().c_str());
-
         if (jResult["error"].is_null()) {
             //printf(" **** SUBMITTED BLOCK SOLUTION FOR APPROVAL!!! ****\n");
             getWork->reqNewBlockFlag = true;
             statDisplay->share_count++;
-            if (jResult["result"] == "high-hash")
+            if (jResult["result"].is_null()) {
+                printf("Find Block\n");
+                statDisplay->accepted_share_count++;
+            }
+            else {
                 statDisplay->rejected_share_count++;
+            }
+                
         }
         else {
             //printf("Submit block failed: %s.\n", jResult["error"]);

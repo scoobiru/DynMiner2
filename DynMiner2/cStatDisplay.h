@@ -30,6 +30,8 @@ public:
     atomic<uint64_t> nonce_count{};
     atomic<uint64_t> share_count{};
     atomic<uint32_t> accepted_share_count{};
+    atomic<uint32_t> target_c{};
+    atomic<uint32_t> hit_c{};
     atomic<uint32_t> rejected_share_count{};
     atomic<uint32_t> latest_diff{};
     uint32_t blockHeight;
